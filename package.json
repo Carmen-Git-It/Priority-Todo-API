@@ -1,0 +1,11 @@
+{
+  "name": "priority-todo-api",
+  "version": "0.1.0",
+  "description": "The API for the Priority Todo app",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Carmen-Git-It",
+  "license": "ISC"
+}
