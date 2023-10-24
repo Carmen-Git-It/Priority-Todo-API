@@ -34,13 +34,13 @@ module.exports.connect = function() {
   return new Promise(function (resolve, reject) {
     connection = mongoose.createConnection(mongoDBConnectionString);
 
-    db.on('error', err => {
+    connection.on('error', err => {
       reject(err);
     })
 
-    db.once('open', () => {
-      User = db.model('users', userSchema);
-      Items = db.model('items', itemSchema);
+    connection.once('open', () => {
+      User = connection.model('users', userSchema);
+      Items = connection.model('items', itemSchema);
       resolve();
     })
   });
@@ -95,7 +95,7 @@ module.exports.checkUser = function (userData) {
 module.exports.getItems = function (id) {
   return new Promise(function (resolve, reject) {
     Items.find({user: id}).exec().then(items => {
-      resolve(items);
+      resolve(items || []);
     }).catch(err => {
       reject(`Unable to get items for user with id: ${id}`);
     });
@@ -107,8 +107,9 @@ module.exports.addItem = function (id, itemDetails) {
     if (!id) {
       reject('Require a User id to add an item.');
     }
-
+    console.log("Adding item: " + JSON.stringify(itemDetails));
     itemDetails.user = id;
+    itemDetails.due = new Date(itemDetails.due);
 
     let newItem = new Items(itemDetails);
     newItem.save().then(() => {
@@ -125,15 +126,20 @@ module.exports.removeItem = function(userId, itemId) {
       reject('Require a valid user ID and item ID to remove an item.');
     }
 
-    const item = Items.findById(itemId);
-    if (item.user !== userId) {
-      reject('Item is not owned by user requesting removal.');
-    }
-
-    Items.findByIdAndDelete(itemId).then((item) => {
-      resolve('Successfully deleted item with id: ' + itemId);
-    }).catch((err) => {
-      reject('Error deleting item: ' + itemId + ' due to: ' + err);
+    Items.findById(itemId).exec().then((item) => {
+      if (item.user !== userId) {
+        reject('Item is not owned by user requesting removal.');
+      }
+    })
+    .then(() => {
+      Items.findByIdAndDelete(itemId).then((item) => {
+        resolve('Successfully deleted item with id: ' + itemId);
+      }).catch((err) => {
+        reject('Error deleting item: ' + itemId + ' due to: ' + err);
+      });
+    })
+    .catch((err) => {
+      reject("Unable to find item: " + err);
     });
   });
 }
@@ -144,16 +150,21 @@ module.exports.completeItem = function(userId, itemId) {
       reject('Require a valid user ID and item ID to update an item.');
     }
 
-    const item = Items.findById(itemId);
-    if (item.user !== userId) {
-      reject('Item is not owned by user requesting update.');
-    }
-
-    Items.findByidAndUpdate(itemId, {complete: true}).then(() => {
-      resolve('Successfully update completion status of item: ' + itemId);
-    }).catch((err) => {
-      reject('Unable to update completion status of item: ' + itemId);
-    });
+    const item = Items.findById(itemId).then((item) => {
+      if (item.user !== userId) {
+        reject('Item is not owned by user requesting update.');
+      }
+    })
+    .then(() => {
+      Items.findOneAndUpdate({_id: itemId}, {complete: true}).then(() => {
+        resolve('Successfully update completion status of item: ' + itemId);
+      }).catch((err) => {
+        reject('Unable to update completion status of item: ' + itemId);
+      });
+    })
+    .catch((err) => {
+      reject('Unable to find item: ' + err);
+    });  
   });
 }
 
@@ -163,15 +174,20 @@ module.exports.resetItem = function(userId, itemId) {
       reject('Require a valid user ID and item ID to reset an item.');
     }
 
-    const item = Items.findById(itemId);
-    if (item.user !== userId) {
-      reject('Item is not owned by user requesting reset.');
-    }
-
-    Items.findByidAndUpdate(itemId, {complete: false}).then(() => {
-      resolve('Successfully update completion status of item: ' + itemId);
-    }).catch((err) => {
-      reject('Unable to update completion status of item: ' + itemId);
+    const item = Items.findById(itemId).then((item) => {
+      if (item.user !== userId) {
+        reject('Item is not owned by user requesting reset.');
+      }
+    })
+    .then(() => {
+      Items.findOneAndUpdate({_id: itemId}, {complete: false}).then(() => {
+        resolve('Successfully update completion status of item: ' + itemId);
+      }).catch((err) => {
+        reject('Unable to update completion status of item: ' + itemId);
+      });
+    })
+    .catch((err) => {
+      reject('Error finding item: ' + err);
     });
   });
 }

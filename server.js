@@ -57,13 +57,17 @@ app.post('/api/user/login', (req, res) => {
 
     let token = jwt.sign(payload, jwtOptions.secretOrKey);
     res.status(200).json(createSuccessResponse({'message': 'login successful', 'token': token}));
+  })
+  .catch((err) => {
+    res.status(422).json(createErrorResponse(422, err));
   });
 });
 
 // Get all user items
 app.get('/api/items', passport.authenticate('jwt', {session: false}), (req, res) => {
-  dataService.getItems(req.user_id)
+  dataService.getItems(req.user._id)
   .then((data) => {
+    console.log("Got items for user " + req.user._id + ": " + JSON.stringify(data));
     res.status(200).json(createSuccessResponse(data));
   }).catch((err) => {
     res.status(422).json(createErrorResponse(422, err));
@@ -72,7 +76,8 @@ app.get('/api/items', passport.authenticate('jwt', {session: false}), (req, res)
 
 // Add new item
 app.put('/api/items', passport.authenticate('jwt', {session: false}), (req, res) => {
-  dataService.addItem(req.user_id, req.item_details) // TODO: Make sure this lines up with client-side data
+  console.log(req.user._id);
+  dataService.addItem(req.user._id, req.body) // TODO: Make sure this lines up with client-side data
   .then((data) => {
     res.status(200).json(createSuccessResponse(data));
   }).catch((err) => {
@@ -81,8 +86,8 @@ app.put('/api/items', passport.authenticate('jwt', {session: false}), (req, res)
 });
 
 // Complete item
-app.put('/api/items/complete/:id', passport.authenticate('jtw', {session: false}), (req, res) => {
-  dataService.completeItem(req.user_id, req.params.id)
+app.put('/api/items/complete/:id', passport.authenticate('jwt', {session: false}), (req, res) => {
+  dataService.completeItem(req.user._id, req.params.id)
   .then((data) => {
     res.status(200).json(createSuccessResponse(data));
   }).catch((err) => {
@@ -92,7 +97,7 @@ app.put('/api/items/complete/:id', passport.authenticate('jtw', {session: false}
 
 // Reset item
 app.put('/api/items/reset/:id', passport.authenticate('jwt', {session: false}), (req, res) => {
-  dataService.resetItem(req.user_id, req.params.id)
+  dataService.resetItem(req.user._id, req.params.id)
   .then((data) => {
     res.status(200).json(createSuccessResponse(data));
   }).catch((err) => {
@@ -102,7 +107,7 @@ app.put('/api/items/reset/:id', passport.authenticate('jwt', {session: false}), 
 
 // Remove item
 app.delete('/api/items/:id', passport.authenticate('jwt', {session: false}), (req, res) => {
-  dataService.removeItem(req.user_id, req.params.id)
+  dataService.removeItem(req.user._id, req.params.id)
   .then((data) => {
     res.status(200).json(createSuccessResponse(data));
   }).catch((err) => {
